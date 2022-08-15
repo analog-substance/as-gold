@@ -131,46 +131,95 @@ func findGitDirs(dir string) ([]string, error) {
 	return files, err
 }
 
-func (s *SolidGold) ConsumeGithubOrgs(orgs ...string) {
+func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, orgs ...string) {
 	client := github.NewClient(nil)
 
 	for _, org := range orgs {
 		opt := &github.RepositoryListByOrgOptions{Type: "sources"}
-		repos, _, _ := client.Repositories.ListByOrg(context.Background(), org, opt)
 
-		for _, repo := range repos {
-			gitCloneURL(fmt.Sprintf("github.com/%s", repo.GetFullName()), repo.GetCloneURL())
-		}
-		members, _, _ := client.Organizations.ListMembers(context.Background(), org, nil)
+		for {
 
-		for _, member := range members {
-			if member.GetEmail() != "" {
-				h := s.FindOrCreateHuman(member.GetLogin(), member.GetEmail())
+			repos, resp, _ := client.Repositories.ListByOrg(context.Background(), org, opt)
 
-				if member.GetName() != "" {
-					h.AddName(member.GetName())
-				}
+			for _, repo := range repos {
+				gitCloneURL(fmt.Sprintf("github.com/%s", repo.GetFullName()), repo.GetCloneURL())
 			}
-			s.ConsumeGithubUsers(member.GetLogin())
+
+			if resp.NextPage == 0 {
+				break
+			}
+
+			opt.Page = resp.NextPage
 		}
+
+		usernames := []string{}
+		if includeMembers {
+			memberListOpt := &github.ListMembersOptions{}
+			for {
+
+				members, resp, _ := client.Organizations.ListMembers(context.Background(), org, memberListOpt)
+				for _, member := range members {
+					if member.GetEmail() != "" {
+						h := s.FindOrCreateHuman(member.GetLogin(), member.GetEmail())
+
+						if member.GetName() != "" {
+							h.AddName(member.GetName())
+						}
+					}
+
+					usernames = append(usernames, member.GetLogin())
+				}
+
+				if resp.NextPage == 0 {
+					break
+				}
+
+				opt.Page = resp.NextPage
+			}
+			s.ConsumeGithubUsers(true, usernames...)
+		}
+
 	}
 }
 
-func (s *SolidGold) ConsumeGithubUsers(users ...string) {
+func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
 	client := github.NewClient(nil)
 
 	for _, user := range users {
-		opt := &github.RepositoryListOptions{Type: "sources"}
-		repos, _, _ := client.Repositories.List(context.Background(), user, opt)
+		opt := &github.RepositoryListOptions{Type: "owner"}
+		for {
 
-		for _, repo := range repos {
-			gitCloneURL(fmt.Sprintf("github.com/%s", repo.GetFullName()), repo.GetCloneURL())
+			repos, resp, _ := client.Repositories.List(context.Background(), user, opt)
+
+			for _, repo := range repos {
+				if !*repo.Fork {
+					gitCloneURL(fmt.Sprintf("github.com/%s", repo.GetFullName()), repo.GetCloneURL())
+				}
+			}
+
+			if resp.NextPage == 0 {
+				break
+			}
+
+			opt.Page = resp.NextPage
+		}
+
+		if includeOrgs {
+			orgs, _, err := client.Organizations.List(context.Background(), user, nil)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println(orgs, user)
+			orgNames := []string{}
+			for _, org := range orgs {
+				orgNames = append(orgNames, org.GetName())
+			}
+			s.ConsumeGithubOrgs(false, orgNames...)
 		}
 	}
 }
 
 func gitCloneURL(path, repoURL string) {
-
 	git.PlainClone(path, false, &git.CloneOptions{
 		URL:      repoURL,
 		Progress: os.Stdout,

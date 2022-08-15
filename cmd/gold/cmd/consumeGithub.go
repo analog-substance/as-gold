@@ -23,8 +23,8 @@ var consumeGithubCmd = &cobra.Command{
 		orgs, _ := cmd.Flags().GetStringSlice("orgs")
 		users, _ := cmd.Flags().GetStringSlice("users")
 
-		solidGold.ConsumeGithubOrgs(orgs...)
-		solidGold.ConsumeGithubUsers(users...)
+		solidGold.ConsumeGithubOrgs(true, orgs...)
+		solidGold.ConsumeGithubUsers(true, users...)
 
 		solidGold.ProcessPath("github.com")
 
