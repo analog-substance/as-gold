@@ -2,6 +2,7 @@ package gold
 
 import (
 	"context"
+	"log"
 
 	"encoding/csv"
 	"encoding/json"
@@ -220,6 +221,7 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
 }
 
 func gitCloneURL(path, repoURL string) {
+	log.Printf("cloning %s to %s", repoURL, path)
 	git.PlainClone(path, false, &git.CloneOptions{
 		URL:      repoURL,
 		Progress: os.Stdout,
