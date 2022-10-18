@@ -11,6 +11,7 @@ type Human struct {
 	Names     []string
 	Emails    []string
 	Passwords []string
+	Roles     []string
 }
 
 func NewHuman() *Human {
@@ -32,6 +33,9 @@ func (h *Human) AddEmail(email string) {
 
 func (h *Human) AddName(name string) {
 	name = strings.TrimSpace(name)
+	if len(name) == 0 {
+		return
+	}
 
 	for _, n := range h.Names {
 		if strings.EqualFold(name, n) {
@@ -43,7 +47,26 @@ func (h *Human) AddName(name string) {
 	sort.Strings(h.Names)
 }
 
+func (h *Human) AddRole(roleName string) {
+	roleName = strings.TrimSpace(roleName)
+	if len(roleName) == 0 {
+		return
+	}
+
+	for _, n := range h.Roles {
+		if strings.EqualFold(roleName, n) {
+			// we already have that name
+			return
+		}
+	}
+	h.Roles = append(h.Roles, roleName)
+	sort.Strings(h.Roles)
+}
+
 func (h *Human) AddPassword(password string) {
+	if len(password) == 0 {
+		return
+	}
 
 	for _, p := range h.Passwords {
 		if password == p {

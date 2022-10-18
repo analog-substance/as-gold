@@ -2,6 +2,7 @@ package gold
 
 import (
 	"context"
+	"github.com/go-git/go-git/v5"
 	"log"
 
 	"encoding/csv"
@@ -9,7 +10,6 @@ import (
 	"fmt"
 	"github.com/analog-substance/gold/internal/util"
 	"github.com/analog-substance/gold/pkg/types"
-	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/google/go-github/v45/github"
 	"io"
@@ -115,6 +115,36 @@ func (s *SolidGold) ConsumeBreachFiles(breachFilePaths ...string) {
 
 			human := s.Group.FindOrCreateHumanByEmail(email)
 			human.AddPassword(password)
+		}
+	}
+}
+
+func (s *SolidGold) ConsumeGophishFiles(gophishFilePaths ...string) {
+	for _, gophishFile := range gophishFilePaths {
+		csvFile, err := os.Open(gophishFile)
+		util.CheckErr(err)
+		reader := csv.NewReader(csvFile)
+		//reader.Comma = ','
+		reader.FieldsPerRecord = -1
+
+		csvData, err := reader.ReadAll()
+		util.CheckErr(err)
+
+		csvFile.Close()
+
+		for _, cols := range csvData {
+			firstName := cols[0]
+			lastName := cols[1]
+			email := cols[2]
+			position := cols[3]
+
+			if strings.ToLower(firstName) == "First Name" {
+				continue
+			}
+
+			human := s.Group.FindOrCreateHumanByEmail(email)
+			human.AddName(fmt.Sprintf("%s %s", strings.TrimSpace(firstName), strings.TrimSpace(lastName)))
+			human.AddRole(position)
 		}
 	}
 }
