@@ -110,8 +110,15 @@ func (s *SolidGold) ConsumeBreachFiles(breachFilePaths ...string) {
 		tsvFile.Close()
 
 		for _, cols := range tsvData {
-			email := cols[0]
-			password := cols[1]
+			email := ""
+			password := ""
+			if len(cols) >= 1 {
+				email = cols[0]
+			}
+
+			if len(cols) >= 2 {
+				password = cols[1]
+			}
 
 			human := s.Group.FindOrCreateHumanByEmail(email)
 			human.AddPassword(password)
@@ -133,6 +140,7 @@ func (s *SolidGold) ConsumeGophishFiles(gophishFilePaths ...string) {
 		csvFile.Close()
 
 		for _, cols := range csvData {
+
 			firstName := cols[0]
 			lastName := cols[1]
 			email := cols[2]
@@ -145,6 +153,7 @@ func (s *SolidGold) ConsumeGophishFiles(gophishFilePaths ...string) {
 			human := s.Group.FindOrCreateHumanByEmail(email)
 			human.AddName(fmt.Sprintf("%s %s", strings.TrimSpace(firstName), strings.TrimSpace(lastName)))
 			human.AddRole(position)
+
 		}
 	}
 }
