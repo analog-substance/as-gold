@@ -1,4 +1,4 @@
-module github.com/analog-substance/gold
+module github.com/analog-substance/as-gold
 
 go 1.19
 

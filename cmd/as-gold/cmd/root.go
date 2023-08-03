@@ -13,7 +13,7 @@ var cfgFile string
 var goldFile string
 
 var rootCmd = &cobra.Command{
-	Use:   "gold",
+	Use:   "as-gold",
 	Short: "Extract valuable human data from various sources",
 	Long:  `Combine data from git repos, breach dumps into a collection of people.`,
 }
