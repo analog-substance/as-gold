@@ -11,7 +11,7 @@ import (
 	"github.com/analog-substance/as-gold/internal/util"
 	"github.com/analog-substance/as-gold/pkg/types"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v56/github"
 	"io"
 	"os"
 	"path/filepath"
@@ -171,18 +171,28 @@ func findGitDirs(dir string) ([]string, error) {
 	return files, err
 }
 
-func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, orgs ...string) {
+func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, authToken string, orgs ...string) {
+
 	client := github.NewClient(nil)
+
+	if authToken != "" {
+		client = client.WithAuthToken(authToken)
+	}
 
 	for _, org := range orgs {
 		opt := &github.RepositoryListByOrgOptions{Type: "sources"}
 
 		for {
 
-			repos, resp, _ := client.Repositories.ListByOrg(context.Background(), org, opt)
+			repos, resp, err := client.Repositories.ListByOrg(context.Background(), org, opt)
+
+			if err != nil {
+				log.Println("Error encountered while attempting to consume the GitHub API", err)
+				os.Exit(2)
+			}
 
 			for _, repo := range repos {
-				gitCloneURL(fmt.Sprintf("github.com/%s", repo.GetFullName()), repo.GetCloneURL())
+				gitCloneURL(fmt.Sprintf("github.com/%s", repo.GetFullName()), repo.GetSSHURL())
 			}
 
 			if resp.NextPage == 0 {
@@ -216,20 +226,28 @@ func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, orgs ...string) {
 
 				opt.Page = resp.NextPage
 			}
-			s.ConsumeGithubUsers(true, usernames...)
+			s.ConsumeGithubUsers(false, authToken, usernames...)
 		}
 
 	}
 }
 
-func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
+func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, authToken string, users ...string) {
 	client := github.NewClient(nil)
+
+	if authToken != "" {
+		client = client.WithAuthToken(authToken)
+	}
 
 	for _, user := range users {
 		opt := &github.RepositoryListOptions{Type: "owner"}
 		for {
 
-			repos, resp, _ := client.Repositories.List(context.Background(), user, opt)
+			repos, resp, err := client.Repositories.List(context.Background(), user, opt)
+			if err != nil {
+				log.Println("Error encountered while attempting to consume the GitHub API", err)
+				os.Exit(2)
+			}
 
 			for _, repo := range repos {
 				if !*repo.Fork {
@@ -247,14 +265,15 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
 		if includeOrgs {
 			orgs, _, err := client.Organizations.List(context.Background(), user, nil)
 			if err != nil {
-				fmt.Println(err)
+				log.Println("Error encountered while attempting to consume the GitHub API", err)
+				os.Exit(2)
 			}
-			fmt.Println(orgs, user)
+
 			orgNames := []string{}
 			for _, org := range orgs {
 				orgNames = append(orgNames, org.GetName())
 			}
-			s.ConsumeGithubOrgs(false, orgNames...)
+			s.ConsumeGithubOrgs(false, authToken, orgNames...)
 		}
 	}
 }

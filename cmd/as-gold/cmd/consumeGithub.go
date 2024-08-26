@@ -22,9 +22,14 @@ var consumeGithubCmd = &cobra.Command{
 
 		orgs, _ := cmd.Flags().GetStringSlice("orgs")
 		users, _ := cmd.Flags().GetStringSlice("users")
+		noOrgsMembers, _ := cmd.Flags().GetBool("no-orgs-members")
+		noUserOrgs, _ := cmd.Flags().GetBool("no-user-orgs")
 
-		solidGold.ConsumeGithubOrgs(true, orgs...)
-		solidGold.ConsumeGithubUsers(true, users...)
+		authToken, _ := cmd.Flags().GetString("auth-token")
+		//repoJSONFile, _ := cmd.Flags().GetString("repos-json")
+
+		solidGold.ConsumeGithubOrgs(!noOrgsMembers, authToken, orgs...)
+		solidGold.ConsumeGithubUsers(!noUserOrgs, authToken, users...)
 
 		solidGold.ProcessPath("github.com")
 
@@ -41,5 +46,9 @@ func init() {
 
 	consumeGithubCmd.Flags().StringSliceP("orgs", "o", []string{}, "orgs(s) to search for")
 	consumeGithubCmd.Flags().StringSliceP("users", "u", []string{}, "users(s) to search for")
+	consumeGithubCmd.Flags().StringP("auth-token", "a", "", "github personal auth token")
+	consumeGithubCmd.Flags().BoolP("no-org-members", "M", false, "When querying organizations, do not look at it's members")
+	consumeGithubCmd.Flags().BoolP("no-user-orgs", "O", false, "When querying users, do not look at organizations they are members of")
+	//consumeGithubCmd.Flags().StringP("repos-json", "r", "", "repos json api response file")
 
 }
