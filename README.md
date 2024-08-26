@@ -27,5 +27,5 @@ Use "as-gold [command] --help" for more information about a command.
 ## Install
 
 ```bash
-go install github.com/analog-substance/as-gold/cmd/as-gold@latest 
+go install github.com/analog-substance/as-gold@latest 
 ```

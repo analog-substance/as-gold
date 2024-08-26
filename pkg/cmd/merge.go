@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/analog-substance/as-gold/internal/gold"
+	"github.com/analog-substance/as-gold/pkg/gold"
 
 	"github.com/spf13/cobra"
 )

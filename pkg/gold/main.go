@@ -2,13 +2,13 @@ package gold
 
 import (
 	"context"
+	"github.com/analog-substance/as-gold/pkg/util"
 	"github.com/go-git/go-git/v5"
 	"log"
 
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/analog-substance/as-gold/internal/util"
 	"github.com/analog-substance/as-gold/pkg/types"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/google/go-github/v56/github"

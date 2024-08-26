@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/analog-substance/as-gold/cmd/as-gold/cmd"
+	"github.com/analog-substance/as-gold/pkg/cmd"
 )
 
 func main() {
