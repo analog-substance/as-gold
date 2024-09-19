@@ -2,6 +2,7 @@ package gold
 
 import (
 	"context"
+	"errors"
 	"github.com/analog-substance/as-gold/pkg/util"
 	"github.com/go-git/go-git/v5"
 	"log"
@@ -285,9 +286,9 @@ func (s *SolidGold) UpdateGithub() {
 	orgOrUsers, _ := os.ReadDir(FolderPath)
 	for _, orgOrUser := range orgOrUsers {
 		if orgOrUser.IsDir() {
-			repos, _ := os.ReadDir(orgOrUser.Name())
+			repos, _ := os.ReadDir(path.Join(FolderPath, orgOrUser.Name()))
 			for _, repo := range repos {
-				if !repo.IsDir() {
+				if repo.IsDir() {
 					repoInst, err := git.PlainOpen(path.Join(FolderPath, orgOrUser.Name(), repo.Name()))
 					if err != nil {
 						log.Println("Error encountered while getting repo instance", err)
@@ -300,9 +301,12 @@ func (s *SolidGold) UpdateGithub() {
 					}
 					err = w.Pull(&git.PullOptions{RemoteName: "origin"})
 					if err != nil {
-						log.Println("Error encountered while pulling", err)
+						if !errors.Is(err, git.NoErrAlreadyUpToDate) {
+							log.Println("Error encountered while pulling", err)
+						}
 						continue
 					}
+					log.Println("Updated Github repo", path.Join(FolderPath, orgOrUser.Name(), repo.Name()))
 				}
 			}
 		}
