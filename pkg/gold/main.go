@@ -198,15 +198,21 @@ func findGitDirs(dir string) ([]string, error) {
 }
 
 func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, orgs ...string) {
-	s.GitHub.Organizations = uniqueSlice(append(s.GitHub.Organizations, orgs...))
+	s.GitHub.Organizations = util.UniqueSlice(append(s.GitHub.Organizations, orgs...))
+	// maybe save
+
+	orgs = util.UniqueSlice(orgs)
 	for _, org := range orgs {
 		opt := &github.RepositoryListByOrgOptions{Type: "sources"}
+		if org == "" {
+			continue
+		}
 
 		for {
 			repos, resp, err := s.GithubClient().Repositories.ListByOrg(context.Background(), org, opt)
 
 			if err != nil {
-				log.Println("Error encountered while attempting to consume the GitHub API", err)
+				log.Println("Error encountered while getting an organization's repo list", err)
 				os.Exit(2)
 			}
 
@@ -252,15 +258,19 @@ func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, orgs ...string) {
 }
 
 func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
-	s.GitHub.Users = uniqueSlice(append(s.GitHub.Users, users...))
+	s.GitHub.Users = util.UniqueSlice(append(s.GitHub.Users, users...))
 
+	users = util.UniqueSlice(users)
 	for _, user := range users {
+		if user == "" {
+			continue
+		}
 		opt := &github.RepositoryListOptions{Type: "owner"}
 		for {
 
 			repos, resp, err := s.GithubClient().Repositories.List(context.Background(), user, opt)
 			if err != nil {
-				log.Println("Error encountered while attempting to consume the GitHub API", err)
+				log.Println("Error encountered while getting a users repo list", err)
 				os.Exit(2)
 			}
 
@@ -280,7 +290,7 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
 		if includeOrgs {
 			orgs, _, err := s.GithubClient().Organizations.List(context.Background(), user, nil)
 			if err != nil {
-				log.Println("Error encountered while attempting to consume the GitHub API", err)
+				log.Println("Error encountered while getting a user's org list", err)
 				os.Exit(2)
 			}
 
@@ -352,17 +362,4 @@ func exists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
-}
-
-func uniqueSlice(slice []string) []string {
-	r := map[string]bool{}
-	for _, entry := range slice {
-		r[entry] = true
-	}
-
-	s := make([]string, 0, len(r))
-	for k, _ := range r {
-		s = append(s, k)
-	}
-	return s
 }
