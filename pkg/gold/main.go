@@ -286,27 +286,29 @@ func (s *SolidGold) UpdateGithub() {
 	orgOrUsers, _ := os.ReadDir(FolderPath)
 	for _, orgOrUser := range orgOrUsers {
 		if orgOrUser.IsDir() {
-			repos, _ := os.ReadDir(path.Join(FolderPath, orgOrUser.Name()))
+			orgOrUserPath := path.Join(FolderPath, orgOrUser.Name())
+			repos, _ := os.ReadDir(orgOrUserPath)
 			for _, repo := range repos {
 				if repo.IsDir() {
-					repoInst, err := git.PlainOpen(path.Join(FolderPath, orgOrUser.Name(), repo.Name()))
+					repoPath := path.Join(orgOrUserPath, repo.Name())
+					repoInst, err := git.PlainOpen(repoPath)
 					if err != nil {
-						log.Println("Error encountered while getting repo instance", err)
+						log.Printf("Error encountered while attempting to open repo %s: %s", repoPath, err)
 						continue
 					}
 					w, err := repoInst.Worktree()
 					if err != nil {
-						log.Println("Error encountered while getting repo work tree", err)
+						log.Printf("Error encountered while attempting to get work tree %s: %s", repoPath, err)
 						continue
 					}
 					err = w.Pull(&git.PullOptions{RemoteName: "origin"})
 					if err != nil {
 						if !errors.Is(err, git.NoErrAlreadyUpToDate) {
-							log.Println("Error encountered while pulling", err)
+							log.Printf("Error encountered while attempting to pull repo %s: %s", repoPath, err)
 						}
 						continue
 					}
-					log.Println("Updated Github repo", path.Join(FolderPath, orgOrUser.Name(), repo.Name()))
+					log.Printf("Successfully updated repo %s", repoPath)
 				}
 			}
 		}
