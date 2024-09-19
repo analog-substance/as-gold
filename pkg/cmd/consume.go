@@ -16,5 +16,5 @@ gold consume git path/to/gitrepo`,
 }
 
 func init() {
-	rootCmd.AddCommand(consumeCmd)
+	RootCmd.AddCommand(consumeCmd)
 }

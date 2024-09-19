@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/analog-substance/as-gold/pkg/gold"
 	"github.com/analog-substance/as-gold/pkg/util"
 	"github.com/spf13/cobra"
 )
@@ -11,15 +10,6 @@ var consumeGophishCmd = &cobra.Command{
 	Short: "Consume Gophish CSV",
 	Long:  `Consume Gophish CSV`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		var solidGold *gold.SolidGold
-
-		if goldFile != "" {
-			solidGold = gold.FromJSONFile(goldFile)
-		} else {
-			solidGold = gold.NewSolidGold()
-		}
-
 		if len(args) > 0 {
 			solidGold.ConsumeGophishFiles(args...)
 		}

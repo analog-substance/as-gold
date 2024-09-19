@@ -25,13 +25,6 @@ Return entries with "company" in them and save to new json file
 
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		var solidGold *gold.SolidGold
-
-		if goldFile != "" {
-			solidGold = gold.FromJSONFile(goldFile)
-		} else {
-			solidGold = gold.NewSolidGold()
-		}
 
 		printEmails, _ := cmd.Flags().GetBool("print-emails")
 		printNames, _ := cmd.Flags().GetBool("print-names")
@@ -110,7 +103,7 @@ Return entries with "company" in them and save to new json file
 }
 
 func init() {
-	rootCmd.AddCommand(searchCmd)
+	RootCmd.AddCommand(searchCmd)
 
 	searchCmd.Flags().StringSliceP("domains", "d", []string{}, "domain(s) to search for")
 	searchCmd.Flags().StringSliceP("search", "s", []string{}, "strings(s) to search for in name and email")

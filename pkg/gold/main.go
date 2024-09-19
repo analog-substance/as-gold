@@ -20,15 +20,19 @@ import (
 	"strings"
 )
 
-const FolderPath = "github.com"
+const GitHubFolderPath = "github.com"
 
 type SolidGold struct {
 	*types.Group
+	*types.GitHub `json:"github"`
+	githubToken   string
+	githubClient  *github.Client
 }
 
 func NewSolidGold() *SolidGold {
 	return &SolidGold{
-		types.NewGroup(),
+		Group:  types.NewGroup(),
+		GitHub: types.NewGitHub(),
 	}
 }
 
@@ -51,14 +55,32 @@ func FromJSON(byteAr []byte) *SolidGold {
 	var solidGold SolidGold
 	err := json.Unmarshal(byteAr, &solidGold)
 	util.CheckErr(err)
+	if solidGold.GitHub == nil {
+		solidGold.GitHub = types.NewGitHub()
+	}
 	return &solidGold
-
 }
 
 func (s *SolidGold) ToJSON() []byte {
 	goldJSON, err := json.Marshal(s)
 	util.CheckErr(err)
 	return goldJSON
+}
+
+func (s *SolidGold) SetGitHubAccessToken(accessToken string) {
+	s.githubToken = accessToken
+}
+
+func (s *SolidGold) GithubClient() *github.Client {
+	if s.githubClient == nil {
+		s.githubClient = github.NewClient(nil)
+
+		if s.githubToken != "" {
+			s.githubClient = s.githubClient.WithAuthToken(s.githubToken)
+		}
+	}
+
+	return s.githubClient
 }
 
 func (s *SolidGold) ToJSONFile(goldFile string) error {
@@ -175,20 +197,13 @@ func findGitDirs(dir string) ([]string, error) {
 	return files, err
 }
 
-func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, authToken string, orgs ...string) {
-
-	client := github.NewClient(nil)
-
-	if authToken != "" {
-		client = client.WithAuthToken(authToken)
-	}
-
+func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, orgs ...string) {
+	s.GitHub.Organizations = uniqueSlice(append(s.GitHub.Organizations, orgs...))
 	for _, org := range orgs {
 		opt := &github.RepositoryListByOrgOptions{Type: "sources"}
 
 		for {
-
-			repos, resp, err := client.Repositories.ListByOrg(context.Background(), org, opt)
+			repos, resp, err := s.GithubClient().Repositories.ListByOrg(context.Background(), org, opt)
 
 			if err != nil {
 				log.Println("Error encountered while attempting to consume the GitHub API", err)
@@ -196,7 +211,7 @@ func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, authToken string, org
 			}
 
 			for _, repo := range repos {
-				gitCloneURL(path.Join(FolderPath, repo.GetFullName()), repo.GetSSHURL())
+				gitCloneURL(path.Join(GitHubFolderPath, repo.GetFullName()), repo.GetSSHURL())
 			}
 
 			if resp.NextPage == 0 {
@@ -211,7 +226,7 @@ func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, authToken string, org
 			memberListOpt := &github.ListMembersOptions{}
 			for {
 
-				members, resp, _ := client.Organizations.ListMembers(context.Background(), org, memberListOpt)
+				members, resp, _ := s.GithubClient().Organizations.ListMembers(context.Background(), org, memberListOpt)
 				for _, member := range members {
 					if member.GetEmail() != "" {
 						h := s.FindOrCreateHuman(member.GetLogin(), member.GetEmail())
@@ -230,24 +245,20 @@ func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, authToken string, org
 
 				opt.Page = resp.NextPage
 			}
-			s.ConsumeGithubUsers(false, authToken, usernames...)
+			s.ConsumeGithubUsers(false, usernames...)
 		}
 
 	}
 }
 
-func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, authToken string, users ...string) {
-	client := github.NewClient(nil)
-
-	if authToken != "" {
-		client = client.WithAuthToken(authToken)
-	}
+func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
+	s.GitHub.Users = uniqueSlice(append(s.GitHub.Users, users...))
 
 	for _, user := range users {
 		opt := &github.RepositoryListOptions{Type: "owner"}
 		for {
 
-			repos, resp, err := client.Repositories.List(context.Background(), user, opt)
+			repos, resp, err := s.GithubClient().Repositories.List(context.Background(), user, opt)
 			if err != nil {
 				log.Println("Error encountered while attempting to consume the GitHub API", err)
 				os.Exit(2)
@@ -255,7 +266,7 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, authToken string, users
 
 			for _, repo := range repos {
 				if !*repo.Fork {
-					gitCloneURL(path.Join(FolderPath, repo.GetFullName()), repo.GetCloneURL())
+					gitCloneURL(path.Join(GitHubFolderPath, repo.GetFullName()), repo.GetCloneURL())
 				}
 			}
 
@@ -267,7 +278,7 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, authToken string, users
 		}
 
 		if includeOrgs {
-			orgs, _, err := client.Organizations.List(context.Background(), user, nil)
+			orgs, _, err := s.GithubClient().Organizations.List(context.Background(), user, nil)
 			if err != nil {
 				log.Println("Error encountered while attempting to consume the GitHub API", err)
 				os.Exit(2)
@@ -277,16 +288,16 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, authToken string, users
 			for _, org := range orgs {
 				orgNames = append(orgNames, org.GetName())
 			}
-			s.ConsumeGithubOrgs(false, authToken, orgNames...)
+			s.ConsumeGithubOrgs(false, orgNames...)
 		}
 	}
 }
 
-func (s *SolidGold) UpdateGithub() {
-	orgOrUsers, _ := os.ReadDir(FolderPath)
+func (s *SolidGold) UpdateGithub(includeMembers, includeOrgs bool) {
+	orgOrUsers, _ := os.ReadDir(GitHubFolderPath)
 	for _, orgOrUser := range orgOrUsers {
 		if orgOrUser.IsDir() {
-			orgOrUserPath := path.Join(FolderPath, orgOrUser.Name())
+			orgOrUserPath := path.Join(GitHubFolderPath, orgOrUser.Name())
 			repos, _ := os.ReadDir(orgOrUserPath)
 			for _, repo := range repos {
 				if repo.IsDir() {
@@ -313,6 +324,9 @@ func (s *SolidGold) UpdateGithub() {
 			}
 		}
 	}
+
+	s.ConsumeGithubUsers(includeOrgs, s.GitHub.Users...)
+	s.ConsumeGithubOrgs(includeMembers, s.GitHub.Organizations...)
 }
 
 func gitCloneURL(path, repoURL string) {
@@ -338,4 +352,17 @@ func exists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func uniqueSlice(slice []string) []string {
+	r := map[string]bool{}
+	for _, entry := range slice {
+		r[entry] = true
+	}
+
+	s := make([]string, 0, len(r))
+	for k, _ := range r {
+		s = append(s, k)
+	}
+	return s
 }
