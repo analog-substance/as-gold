@@ -5,6 +5,7 @@ import (
 	"github.com/analog-substance/as-gold/pkg/util"
 	"github.com/go-git/go-git/v5"
 	"log"
+	"path"
 
 	"encoding/csv"
 	"encoding/json"
@@ -17,6 +18,8 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+const FolderPath = "github.com"
 
 type SolidGold struct {
 	*types.Group
@@ -192,7 +195,7 @@ func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, authToken string, org
 			}
 
 			for _, repo := range repos {
-				gitCloneURL(fmt.Sprintf("github.com/%s", repo.GetFullName()), repo.GetSSHURL())
+				gitCloneURL(path.Join(FolderPath, repo.GetFullName()), repo.GetSSHURL())
 			}
 
 			if resp.NextPage == 0 {
@@ -251,7 +254,7 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, authToken string, users
 
 			for _, repo := range repos {
 				if !*repo.Fork {
-					gitCloneURL(fmt.Sprintf("github.com/%s", repo.GetFullName()), repo.GetCloneURL())
+					gitCloneURL(path.Join(FolderPath, repo.GetFullName()), repo.GetCloneURL())
 				}
 			}
 
@@ -278,10 +281,55 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, authToken string, users
 	}
 }
 
+func (s *SolidGold) UpdateGithub() {
+	orgOrUsers, _ := os.ReadDir(FolderPath)
+	for _, orgOrUser := range orgOrUsers {
+		if orgOrUser.IsDir() {
+			repos, _ := os.ReadDir(orgOrUser.Name())
+			for _, repo := range repos {
+				if !repo.IsDir() {
+					repoInst, err := git.PlainOpen(path.Join(FolderPath, orgOrUser.Name(), repo.Name()))
+					if err != nil {
+						log.Println("Error encountered while getting repo instance", err)
+						continue
+					}
+					w, err := repoInst.Worktree()
+					if err != nil {
+						log.Println("Error encountered while getting repo work tree", err)
+						continue
+					}
+					err = w.Pull(&git.PullOptions{RemoteName: "origin"})
+					if err != nil {
+						log.Println("Error encountered while pulling", err)
+						continue
+					}
+				}
+			}
+		}
+	}
+}
+
 func gitCloneURL(path, repoURL string) {
-	log.Printf("cloning %s to %s", repoURL, path)
-	git.PlainClone(path, false, &git.CloneOptions{
-		URL:      repoURL,
-		Progress: os.Stdout,
-	})
+	repoExists, err := exists(path)
+	if err != nil {
+		return
+	}
+	if !repoExists {
+		log.Printf("cloning %s to %s", repoURL, path)
+		_, _ = git.PlainClone(path, false, &git.CloneOptions{
+			URL:      repoURL,
+			Progress: os.Stdout,
+		})
+	}
+}
+
+func exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
