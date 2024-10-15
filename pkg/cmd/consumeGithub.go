@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/analog-substance/as-gold/pkg/gold"
 	"github.com/analog-substance/as-gold/pkg/util"
-	"github.com/analog-substance/fileutil"
+	"github.com/analog-substance/util/fileutil"
 	"github.com/spf13/cobra"
 	"log"
 )
