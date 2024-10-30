@@ -213,7 +213,7 @@ func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, orgs ...string) {
 
 			if err != nil {
 				log.Println("Error encountered while getting an organization's repo list", err)
-				os.Exit(2)
+				continue
 			}
 
 			for _, repo := range repos {
@@ -271,7 +271,7 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
 			repos, resp, err := s.GithubClient().Repositories.List(context.Background(), user, opt)
 			if err != nil {
 				log.Println("Error encountered while getting a users repo list", err)
-				os.Exit(2)
+				continue
 			}
 
 			for _, repo := range repos {
@@ -291,7 +291,7 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
 			orgs, _, err := s.GithubClient().Organizations.List(context.Background(), user, nil)
 			if err != nil {
 				log.Println("Error encountered while getting a user's org list", err)
-				os.Exit(2)
+				continue
 			}
 
 			orgNames := []string{}
