@@ -7,6 +7,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"log"
 	"path"
+	"time"
 
 	"encoding/csv"
 	"encoding/json"
@@ -208,23 +209,9 @@ func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, orgs ...string) {
 			continue
 		}
 
-		for {
-			repos, resp, err := s.GithubClient().Repositories.ListByOrg(context.Background(), org, opt)
-
-			if err != nil {
-				log.Println("Error encountered while getting an organization's repo list", err)
-				continue
-			}
-
-			for _, repo := range repos {
-				gitCloneURL(path.Join(GitHubFolderPath, repo.GetFullName()), repo.GetSSHURL())
-			}
-
-			if resp.NextPage == 0 {
-				break
-			}
-
-			opt.Page = resp.NextPage
+		err := s.cloneOrgRepos(org)
+		if err != nil {
+			continue
 		}
 
 		usernames := []string{}
@@ -257,6 +244,88 @@ func (s *SolidGold) ConsumeGithubOrgs(includeMembers bool, orgs ...string) {
 	}
 }
 
+func (s *SolidGold) cloneOrgRepos(org string) error {
+	opt := &github.RepositoryListByOrgOptions{Type: "sources"}
+
+	retries := 10
+	currentRetries := 0
+
+	for {
+		repos, resp, err := s.GithubClient().Repositories.ListByOrg(context.Background(), org, opt)
+		if err != nil {
+			if resp != nil && resp.StatusCode == 404 {
+				return err
+			}
+
+			currentRetries++
+			if currentRetries >= retries {
+				return fmt.Errorf("max retry encountered while getting an organization's repo list: %v", err)
+			}
+
+			log.Println("Error encountered while getting an organization's repo list", err)
+			if resp.StatusCode == 403 {
+				time.Sleep(60 * time.Second)
+			}
+			continue
+		}
+		currentRetries = 0
+
+		for _, repo := range repos {
+			gitCloneURL(path.Join(GitHubFolderPath, repo.GetFullName()), repo.GetSSHURL())
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.Page = resp.NextPage
+	}
+
+	return nil
+}
+
+func (s *SolidGold) cloneUserRepos(user string) error {
+	opt := &github.RepositoryListOptions{Type: "owner"}
+	for {
+
+		retries := 10
+		currentRetries := 0
+
+		repos, resp, err := s.GithubClient().Repositories.List(context.Background(), user, opt)
+		if err != nil {
+			if resp == nil || resp.StatusCode == 404 {
+				return err
+			}
+
+			currentRetries++
+			if currentRetries >= retries {
+				return fmt.Errorf("max retry encountered while getting an user's repo list: %v", err)
+			}
+
+			log.Println("Error encountered while getting an user's repo list", err)
+			if resp.StatusCode == 403 {
+				time.Sleep(60 * time.Second)
+			}
+			continue
+		}
+		currentRetries = 0
+
+		for _, repo := range repos {
+			if !*repo.Fork {
+				gitCloneURL(path.Join(GitHubFolderPath, repo.GetFullName()), repo.GetCloneURL())
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opt.Page = resp.NextPage
+	}
+
+	return nil
+}
+
 func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
 	s.GitHub.Users = util.UniqueSlice(append(s.GitHub.Users, users...))
 
@@ -265,26 +334,9 @@ func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
 		if user == "" {
 			continue
 		}
-		opt := &github.RepositoryListOptions{Type: "owner"}
-		for {
-
-			repos, resp, err := s.GithubClient().Repositories.List(context.Background(), user, opt)
-			if err != nil {
-				log.Println("Error encountered while getting a users repo list", err)
-				continue
-			}
-
-			for _, repo := range repos {
-				if !*repo.Fork {
-					gitCloneURL(path.Join(GitHubFolderPath, repo.GetFullName()), repo.GetCloneURL())
-				}
-			}
-
-			if resp.NextPage == 0 {
-				break
-			}
-
-			opt.Page = resp.NextPage
+		err := s.cloneUserRepos(user)
+		if err != nil {
+			continue
 		}
 
 		if includeOrgs {
