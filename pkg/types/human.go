@@ -8,14 +8,30 @@ import (
 
 type Human struct {
 	UUID      string
+	URLs      []string
 	Names     []string
 	Emails    []string
+	Usernames []string
+	Phones    []string
 	Passwords []string
 	Roles     []string
 }
 
 func NewHuman() *Human {
 	return &Human{UUID: uuid.New().String()}
+}
+
+func (h *Human) AddURL(urlToAdd string) {
+	urlToAdd = strings.ToLower(strings.Trim(urlToAdd, "“” "))
+
+	for _, e := range h.URLs {
+		if urlToAdd == e {
+			// we already have that email
+			return
+		}
+	}
+	h.Emails = append(h.Emails, strings.ToLower(urlToAdd))
+	sort.Strings(h.Emails)
 }
 
 func (h *Human) AddEmail(email string) {
