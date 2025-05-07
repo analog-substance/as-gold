@@ -451,6 +451,13 @@ func (s *SolidGold) ProcessGitHubAPIRepoCommits(user, repo string) error {
 		if err != nil {
 			log.Printf("Error encountered while saving github commits: %v", err)
 		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		commitOpts.Page = resp.NextPage
+
 	}
 }
 
