@@ -28,6 +28,7 @@ type SolidGold struct {
 	*types.GitHub `json:"github"`
 	githubToken   string
 	githubClient  *github.Client
+	SaveFile      string
 }
 
 func NewSolidGold() *SolidGold {
@@ -49,7 +50,10 @@ func FromJSONFile(filepath string) *SolidGold {
 	defer jsonFile.Close()
 	byteAr, err := io.ReadAll(jsonFile)
 	util.CheckErr(err)
-	return FromJSON(byteAr)
+	sg := FromJSON(byteAr)
+
+	sg.SaveFile = filepath
+	return sg
 }
 
 func FromJSON(byteAr []byte) *SolidGold {
@@ -82,6 +86,14 @@ func (s *SolidGold) GithubClient() *github.Client {
 	}
 
 	return s.githubClient
+}
+
+func (s *SolidGold) Save() error {
+	if s.SaveFile == "" {
+		s.SaveFile = "solid-gold.json"
+	}
+
+	return os.WriteFile(s.SaveFile, s.ToJSON(), 0644)
 }
 
 func (s *SolidGold) ToJSONFile(goldFile string) error {
@@ -284,6 +296,49 @@ func (s *SolidGold) cloneOrgRepos(org string) error {
 	return nil
 }
 
+type CommitCollab struct {
+	GHLogin     string
+	GHEmail     string
+	GHName      string
+	GHURL       string
+	CommitEmail string
+	CommitName  string
+}
+
+func (s *SolidGold) FindHumanByCommitCollab(user CommitCollab) *types.Human {
+	var h *types.Human
+	if user.GHEmail != "" {
+		h = s.FindHumanByEmail(user.GHEmail)
+	}
+
+	if h == nil {
+		if user.CommitEmail != "" {
+			h = s.FindHumanByEmail(user.CommitEmail)
+		}
+	}
+
+	if h == nil {
+		if user.CommitName != "" {
+			h = s.FindHumanByName(user.CommitName)
+		}
+	}
+
+	if h == nil {
+		if user.GHLogin != "" {
+			h = s.FindOrCreateHumanByUsername(user.GHLogin)
+		}
+	}
+
+	if h != nil {
+		h.AddEmail(user.GHEmail)
+		h.AddEmail(user.CommitEmail)
+		h.AddName(user.CommitName)
+		h.AddUsername(user.GHLogin)
+		h.AddURL(user.GHURL)
+	}
+	return h
+}
+
 func (s *SolidGold) cloneUserRepos(user string) error {
 	opt := &github.RepositoryListOptions{Type: "owner"}
 	for {
@@ -304,7 +359,10 @@ func (s *SolidGold) cloneUserRepos(user string) error {
 
 			log.Println("Error encountered while getting an user's repo list", err)
 			if resp.StatusCode == 403 {
-				time.Sleep(60 * time.Second)
+				sleepDur := resp.Rate.Reset.Sub(time.Now())
+				log.Println("Sleeping for", sleepDur)
+
+				time.Sleep(sleepDur)
 			}
 			continue
 		}
@@ -313,6 +371,45 @@ func (s *SolidGold) cloneUserRepos(user string) error {
 		for _, repo := range repos {
 			if !*repo.Fork {
 				gitCloneURL(path.Join(GitHubFolderPath, repo.GetFullName()), repo.GetCloneURL())
+
+				commitOpts := &github.CommitsListOptions{}
+
+				commits, _, err := s.GithubClient().Repositories.ListCommits(context.Background(), user, *repo.Name, commitOpts)
+				if err != nil {
+					log.Println("Error encountered while getting an user's repo commit list", repo.GetFullName(), err)
+				} else {
+					for _, commit := range commits {
+
+						c := []CommitCollab{
+							{
+								GHLogin:     commit.GetAuthor().GetLogin(),
+								GHEmail:     commit.GetAuthor().GetEmail(),
+								GHName:      commit.GetAuthor().GetName(),
+								GHURL:       commit.GetAuthor().GetHTMLURL(),
+								CommitEmail: *commit.Commit.Author.Email,
+								CommitName:  *commit.Commit.Author.Name,
+							},
+							{
+								GHLogin:     commit.GetCommitter().GetLogin(),
+								GHEmail:     commit.GetCommitter().GetEmail(),
+								GHName:      commit.GetCommitter().GetName(),
+								GHURL:       commit.GetCommitter().GetHTMLURL(),
+								CommitEmail: *commit.Commit.Committer.Email,
+								CommitName:  *commit.Commit.Committer.Name,
+							},
+						}
+
+						for _, cUser := range c {
+							fmt.Printf("GET HUMAN %s\n", cUser)
+							s.FindHumanByCommitCollab(cUser)
+						}
+					}
+
+					err = s.Save()
+					if err != nil {
+						log.Printf("Error encountered while saving github commits: %v", err)
+					}
+				}
 			}
 		}
 
