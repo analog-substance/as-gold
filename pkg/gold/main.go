@@ -459,6 +459,7 @@ func (s *SolidGold) ProcessGitHubAPIRepoCommits(user, repo string) error {
 		commitOpts.Page = resp.NextPage
 
 	}
+	return nil
 }
 
 func (s *SolidGold) ConsumeGithubUsers(includeOrgs bool, users ...string) {
