@@ -359,7 +359,7 @@ func (s *SolidGold) cloneUserRepos(user string) error {
 
 			log.Println("Error encountered while getting an user's repo list", err)
 			if resp.StatusCode == 403 {
-				sleepDur := resp.Rate.Reset.Sub(time.Now())
+				sleepDur := time.Until(resp.Rate.Reset.Time)
 				log.Println("Sleeping for", sleepDur)
 
 				time.Sleep(sleepDur)
@@ -412,7 +412,7 @@ func (s *SolidGold) ProcessGitHubAPIRepoCommits(user, repo string) error {
 
 			log.Println("Error encountered while getting an repo's commit list", err)
 			if resp.StatusCode == 403 {
-				sleepDur := resp.Rate.Reset.Sub(time.Now())
+				sleepDur := time.Until(resp.Rate.Reset.Time)
 				log.Println("Sleeping for", sleepDur)
 
 				time.Sleep(sleepDur)
