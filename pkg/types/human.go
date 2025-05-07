@@ -2,104 +2,95 @@ package types
 
 import (
 	"github.com/google/uuid"
+	"slices"
 	"sort"
 	"strings"
 )
 
 type Human struct {
 	UUID      string
-	URLs      []string
 	Names     []string
 	Emails    []string
-	Usernames []string
-	Phones    []string
 	Passwords []string
+	Usernames []string
 	Roles     []string
+	URLs      []string
+	Phones    []string
 }
 
 func NewHuman() *Human {
 	return &Human{UUID: uuid.New().String()}
 }
 
-func (h *Human) AddURL(urlToAdd string) {
-	urlToAdd = strings.ToLower(strings.Trim(urlToAdd, "“” "))
-
-	for _, e := range h.URLs {
-		if urlToAdd == e {
-			// we already have that email
-			return
-		}
-	}
-	h.Emails = append(h.Emails, strings.ToLower(urlToAdd))
-	sort.Strings(h.Emails)
+func (h *Human) AddName(name string) {
+	h.Names = addToSlice(h.Names, name)
 }
 
 func (h *Human) AddEmail(email string) {
 	email = strings.ToLower(strings.Trim(email, "“” "))
-
-	for _, e := range h.Emails {
-		if email == e {
-			// we already have that email
-			return
-		}
-	}
-	h.Emails = append(h.Emails, strings.ToLower(email))
-	sort.Strings(h.Emails)
-}
-
-func (h *Human) AddName(name string) {
-	name = strings.TrimSpace(name)
-	if len(name) == 0 {
-		return
-	}
-
-	for _, n := range h.Names {
-		if strings.EqualFold(name, n) {
-			// we already have that name
-			return
-		}
-	}
-	h.Names = append(h.Names, name)
-	sort.Strings(h.Names)
-}
-
-func (h *Human) AddRole(roleName string) {
-	roleName = strings.TrimSpace(roleName)
-	if len(roleName) == 0 {
-		return
-	}
-
-	for _, n := range h.Roles {
-		if strings.EqualFold(roleName, n) {
-			// we already have that name
-			return
-		}
-	}
-	h.Roles = append(h.Roles, roleName)
-	sort.Strings(h.Roles)
+	h.Emails = addToSlice(h.Emails, email)
 }
 
 func (h *Human) AddPassword(password string) {
-	if len(password) == 0 {
-		return
-	}
+	h.Passwords = addToSlice(h.Passwords, password)
+}
 
-	for _, p := range h.Passwords {
-		if password == p {
-			// we already have that password
-			return
-		}
-	}
-	h.Passwords = append(h.Passwords, password)
-	sort.Strings(h.Passwords)
+func (h *Human) AddUsername(username string) {
+	username = strings.ToLower(strings.Trim(username, "“” "))
+	h.Usernames = addToSlice(h.Usernames, username)
+}
+
+func (h *Human) AddRole(roleName string) {
+	roleName = strings.ToLower(strings.Trim(roleName, "“” "))
+	h.Roles = addToSlice(h.Roles, roleName)
+}
+
+func (h *Human) AddURL(urlToAdd string) {
+	urlToAdd = strings.ToLower(strings.Trim(urlToAdd, "“” "))
+	h.URLs = addToSlice(h.URLs, urlToAdd)
+}
+
+func (h *Human) AddPhone(phone string) {
+	h.Phones = addToSlice(h.Phones, phone)
 }
 
 func (h *Human) Merge(otherHuman *Human) {
+	for _, n := range otherHuman.Names {
+		h.AddName(n)
+	}
+
 	for _, e := range otherHuman.Emails {
 		h.AddEmail(e)
 	}
 
-	for _, n := range otherHuman.Names {
-		h.AddName(n)
+	for _, n := range otherHuman.Passwords {
+		h.AddPassword(n)
 	}
+
+	for _, n := range otherHuman.Usernames {
+		h.AddUsername(n)
+	}
+
+	for _, n := range otherHuman.Roles {
+		h.AddRole(n)
+	}
+
+	for _, n := range otherHuman.URLs {
+		h.AddURL(n)
+	}
+
+	for _, n := range otherHuman.Phones {
+		h.AddPhone(n)
+	}
+}
+
+func addToSlice(slice []string, item string) []string {
+	item = strings.TrimSpace(item)
+	if item == "" || slices.Contains(slice, item) {
+		return slice
+	}
+	slice = append(slice, item)
+
+	sort.Strings(slice)
+	return slice
 }

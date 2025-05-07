@@ -39,6 +39,20 @@ func (g *Group) FindOrCreateHuman(name, email string) *Human {
 	return newHuman
 }
 
+func (g *Group) FindOrCreateHumanByUsername(username string) *Human {
+
+	human := g.FindHumanByUsername(username)
+	if human != nil {
+		return human
+	}
+
+	newHuman := NewHuman()
+	newHuman.AddUsername(username)
+
+	g.Members = append(g.Members, newHuman)
+	return newHuman
+}
+
 func (g *Group) FindOrCreateHumanByEmail(email string) *Human {
 	email = strings.TrimSpace(email)
 
@@ -52,6 +66,20 @@ func (g *Group) FindOrCreateHumanByEmail(email string) *Human {
 
 	g.Members = append(g.Members, newHuman)
 	return newHuman
+}
+
+func (g *Group) FindHumanByUsername(username string) *Human {
+	username = strings.TrimSpace(username)
+
+	for _, human := range g.Members {
+		for _, e := range human.Usernames {
+			if strings.EqualFold(username, e) {
+				return human
+			}
+		}
+	}
+
+	return nil
 }
 
 func (g *Group) FindHumanByEmail(email string) *Human {
